@@ -1,0 +1,106 @@
+	.def convolution_linear_asm
+    .text
+    .global convolution_linear_asm
+
+convolution_linear_asm: .cproc in_data, k_data, out_data
+	.asg A0, y_cnt
+	.asg A1, x_cnt
+	.asg A2, tmp_ptr
+	.asg A7, line0_ptr
+	.asg A8, line1_ptr
+	.asg A9, line2_ptr
+	.asg A10, row3_1
+	.asg A11, row6_4
+	.asg A12, row9_7
+	.asg A13, sum
+
+	.asg B0, k3_1
+	.asg B1, k6_4
+	.asg B2, k9_7
+	.asg B5, y_loop_num
+	.asg B6, x_loop_num
+	.asg B7, upper
+	.asg B8, lower
+	.asg B9, out_ptr
+
+    .asg 28, W       ; W = 28
+    .asg 28, H       ; H = 28
+
+
+	;; Kernel load
+	LDW   *k_data[0], k3_1
+	LDW   *k_data[4], k6_4
+	LDW   *k_data[8], k9_7
+
+	;; loop range
+	MVKL  W-2, x_loop_num
+    MVKH  W-2, x_loop_num
+    MVKL  H-2, y_loop_num
+    MVKH  H-2, y_loop_num
+
+	;; line memory pointer
+	MV    in_data, line0_ptr       ; line0_ptr = in_data
+	ADD   in_data, W, line1_ptr    ; line1_ptr = in_data + W
+	ADD   line1_ptr, W, line2_ptr  ; line2_ptr = in_data + 2W
+
+	MV    out_data, out_ptr        ; out_ptr = out_data
+	ADD   out_ptr, W, out_ptr      ; out_ptr = out_data[(1+0)*W]
+	ADD   out_ptr, 1, out_ptr      ; out_ptr = out_data[(1+0)*W + 1]
+
+
+	;; y loop counter
+   	MV y_loop_num, y_cnt   ; y = 28 - 2
+
+loop_y:
+
+	;; x loop counter
+   	MV x_loop_num, x_cnt   ; x = 28 - 2
+
+loop_x:
+
+	;; load 4 pixel from line0
+	MV     line0_ptr, tmp_ptr
+	LDNW   *tmp_ptr,  row3_1
+	ADD    line0_ptr, 1, line0_ptr
+
+	;; load 4 pixel from line1
+	MV     line1_ptr, tmp_ptr
+	LDNW   *tmp_ptr,  row6_4
+	ADD    line1_ptr, 1, line1_ptr
+
+	;; load 4 pixel from line2
+	MV     line2_ptr, tmp_ptr
+	LDNW   *tmp_ptr,  row9_7
+	ADD    line2_ptr, 1, line2_ptr
+
+	;; calc convolution
+	DOTPU4  k3_1, row3_1, row3_1
+	DOTPU4  k6_4, row6_4, row6_4
+	ADD     row3_1, row6_4, row6_4
+	DOTPU4  k9_7, row9_7, row9_7
+	ADD     row6_4, row9_7, sum
+
+	;; clipping
+	MVKL    0, lower
+    MAX2    lower, sum, sum
+    MVKL    255, upper
+    MIN2    upper, sum, sum
+
+	;; output
+	STW sum, *out_ptr++
+
+    [x_cnt] bdec loop_x, x_cnt
+
+    ADD    line0_ptr, 2, line0_ptr
+    ADD    line1_ptr, 2, line1_ptr
+    ADD    line2_ptr, 2, line2_ptr
+    ADD    out_ptr, 2, out_ptr
+
+
+    [y_cnt] bdec loop_y, y_cnt
+
+
+   	.return B3
+
+	.endproc
+
