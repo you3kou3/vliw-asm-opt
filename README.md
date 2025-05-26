@@ -107,7 +107,7 @@ Final instruction ordering spans loop boundaries to further increase instruction
 
 | Implementation | Loop Cycle Count (ii)                      | Remarks |
 |--------|------------------------------|------|
-| `convolution.c`   | - | Scheduling failed by compiler |
+| `convolution.c`   | 28 cycles or more | Scheduling failed by compiler |
 | `convolution_intrinsic.c` | 23 cycle | |
 | `convolution_linear_asm.sa`| 15 cycle  |  |
 | `convolution_hand_asm1.asm`    | 16 cycle  |  |
